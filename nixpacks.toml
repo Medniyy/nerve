@@ -1,0 +1,9 @@
+# Force the Node/Next.js build. The repo also contains the Anchor program
+# (root Cargo.toml), which would otherwise make Nixpacks try a Rust build.
+providers = ["node"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
