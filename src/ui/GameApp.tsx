@@ -25,6 +25,7 @@ import { SessionSetup } from "@/ui/SessionSetup";
 import { SponsorTicker } from "@/ui/SponsorTicker";
 import { Walkthrough } from "@/ui/Walkthrough";
 import type { RoomPlayer, RoomState } from "@/room/store";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const WALKTHROUGH_KEY = "nerve-walkthrough-seen";
@@ -58,6 +59,7 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
   const setSoundOn = useGameStore((s) => s.setSoundOn);
   const setPersonalBest = useGameStore((s) => s.setPersonalBest);
 
+  const router = useRouter();
   const engineRef = useRef<PossessionEngine | null>(null);
   const replayRef = useRef<ReplayStream | null>(null);
   const soloBotsRef = useRef<SoloBots | null>(null);
@@ -75,6 +77,11 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoStartedRef = useRef(false);
   const endedHandled = useRef(false);
+  /** Bumped on stop/exit so in-flight session starts abort cleanly. */
+  const sessionEpochRef = useRef(0);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Room: ignore poll/mirror forcing "playing" after the user exits. */
+  const leftSessionRef = useRef(false);
 
   useEffect(() => {
     if (!identity) setIdentity(createGuestIdentity());
@@ -169,9 +176,15 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
   }, []);
 
   const stopGame = useCallback(() => {
+    sessionEpochRef.current += 1;
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
     engineRef.current?.detach();
     engineRef.current = null;
     replayRef.current = null;
+    soloBotsRef.current = null;
     setConnecting(false);
     setCountdown(null);
     endedHandled.current = false;
@@ -179,6 +192,7 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
 
   const finishIfEnded = useCallback(
     (s: PossessionSnapshot) => {
+      if (leftSessionRef.current) return;
       if (s.phase !== "ended" || endedHandled.current) return;
       endedHandled.current = true;
       const prev = loadPersonalBest();
@@ -193,6 +207,8 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
     async (feed: "replay" | "live", durationId: SessionDurationId) => {
       if (!identity) return;
       stopGame();
+      leftSessionRef.current = false;
+      const epoch = sessionEpochRef.current;
       setMode(feed);
       setScreen("playing");
       setConnecting(true);
@@ -204,19 +220,32 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
 
       const duration = GAME_CONFIG.SESSION_DURATIONS.find((d) => d.id === durationId);
 
-      // Countdown UI
+      // Countdown UI — cleared by stopGame/exit via countdownTimerRef
       setCountdown(3);
       await new Promise<void>((resolve) => {
         let n = 3;
-        const id = setInterval(() => {
+        countdownTimerRef.current = setInterval(() => {
+          if (epoch !== sessionEpochRef.current) {
+            if (countdownTimerRef.current) {
+              clearInterval(countdownTimerRef.current);
+              countdownTimerRef.current = null;
+            }
+            resolve();
+            return;
+          }
           n -= 1;
           setCountdown(n > 0 ? n : null);
           if (n <= 0) {
-            clearInterval(id);
+            if (countdownTimerRef.current) {
+              clearInterval(countdownTimerRef.current);
+              countdownTimerRef.current = null;
+            }
             resolve();
           }
         }, 1000);
       });
+
+      if (epoch !== sessionEpochRef.current) return;
 
       const engine = new PossessionEngine({
         sessionDurationId: durationId,
@@ -230,6 +259,7 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
             ? selectedFixture?.away
             : GAME_CONFIG.DEMO_AWAY,
         onSnapshot: (s) => {
+          if (epoch !== sessionEpochRef.current || leftSessionRef.current) return;
           setSnap(s);
           bots.observe(s);
           setSoloBoard(bots.rows());
@@ -239,7 +269,9 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
 
       if (feed === "replay") {
         const res = await fetch("/recordings/demo-match.jsonl");
+        if (epoch !== sessionEpochRef.current) return;
         const text = await res.text();
+        if (epoch !== sessionEpochRef.current) return;
         const lines = parseJsonl(text);
         const stream = new ReplayStream({
           lines,
@@ -247,7 +279,9 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
           // Play the demo through once — no looping (a mid-session restart is
           // confusing). When the feed ends, end the session and show results.
           loop: false,
-          onEnded: () => engine.finish(),
+          onEnded: () => {
+            if (epoch === sessionEpochRef.current) engine.finish();
+          },
         });
         replayRef.current = stream;
         engine.attach(stream);
@@ -257,6 +291,11 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
             selectedFixture?.id ?? process.env.NEXT_PUBLIC_TXLINE_FIXTURE_ID,
         });
         engine.attach(stream);
+      }
+
+      if (epoch !== sessionEpochRef.current) {
+        engine.detach();
+        return;
       }
 
       engineRef.current = engine;
@@ -278,6 +317,7 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
   // Multiplayer: mirror room match state into local snap; holds go to server
   useEffect(() => {
     if (!roomCode || !room?.started || !identity) return;
+    if (leftSessionRef.current) return;
     const me = room.players.find((p) => p.id === identity.key);
     const m = room.match;
     const remaining =
@@ -327,6 +367,7 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
   // Auto-start room session view when host already started
   useEffect(() => {
     if (!roomCode || !room || !identity || autoStartedRef.current) return;
+    if (leftSessionRef.current) return;
     if (room.started) {
       autoStartedRef.current = true;
       setScreen("playing");
@@ -342,10 +383,16 @@ export function GameApp({ roomCode }: { roomCode?: string } = {}) {
   useEffect(() => () => stopGame(), [stopGame]);
 
   const exitToLobby = useCallback(() => {
+    leftSessionRef.current = true;
     stopGame();
+    setSoloBoard([]);
     setScreen("lobby");
     autoStartedRef.current = false;
-  }, [stopGame, setScreen]);
+    if (roomCode) {
+      // Room mirror/poll would otherwise force "playing" until navigation completes.
+      router.push("/");
+    }
+  }, [stopGame, setScreen, roomCode, router]);
 
   const sendHold = useCallback(
     (type: "hold_start" | "hold_release") => {

@@ -1,76 +1,118 @@
-# Technical notes — Nerve
+# Technical notes — NERVE
 
 ## Core idea
 
-Nerve is an optimal-stopping game: a multiplier grows continuously on a live (or replayed) football match until a real goal crashes everyone still holding. Danger — estimated probability of a goal soon — is derived primarily from TxLINE StablePrice odds, with an event-intensity fallback so the game never goes dark. Ghost opponents create chicken-game pressure on a single solo screen.
+NERVE is a **possession-based hold game** played alongside a real (or replayed) football match.
+
+TxLINE tells the app which team has the ball and how hot the attack is (`Safe` → `Attack` → `Danger` → `HighDanger`). The player presses **HOLD** to accumulate **Current Hold**, and **releases** to lock points into **Total Score**. A confirmed possession turnover wipes only Current Hold. Goals auto-lock the hold — they never punish the player.
+
+Scoring rates (configurable in `src/game/config.ts`):
+
+| Intensity | Points / second |
+| --- | --- |
+| Safe | 1 |
+| Attack | 2 |
+| Danger | 4 |
+| HighDanger | 8 |
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│ TxLINE Feed  │────▶│              │     │             │
-│ (live)       │     │  MatchStream │────▶│ Game Engine │────▶ UI (React)
-├─────────────┤     │  (interface) │     │             │
-│ JSONL Replay │────▶│              │     └─────────────┘
-│ (recorded)   │     └──────────────┘            │
-└─────────────┘                                  ▼
-      ▲                                    KV (leaderboard)
-      │
-┌─────────────┐
-│  Recorder    │  (standalone Node script)
-└─────────────┘
+┌─────────────┐     ┌──────────────┐     ┌────────────────────┐
+│ TxLINE Feed  │────▶│              │     │ PossessionEngine   │
+│ (live SSE)   │     │  MatchStream │────▶│ (solo, client)     │────▶ UI
+├─────────────┤     │  normalize   │     └────────────────────┘
+│ JSONL Replay │────▶│              │              │
+│ (demo)       │     └──────────────┘              │
+└─────────────┘              │                     ▼
+                             │              personal best (localStorage)
+                             ▼
+                    ┌────────────────────┐
+                    │ Room session       │  HOLD_START / HOLD_RELEASE
+                    │ (server authority) │────▶ shared leaderboard
+                    └────────────────────┘
 ```
 
-The game engine never knows whether events are live or replayed. Both `LiveStream` and `ReplayStream` implement `MatchStream` and emit normalized `MatchEvent`s.
+`LiveStream` and `ReplayStream` both implement `MatchStream` and emit normalized `MatchEvent`s. The scoring engine does not care which source is attached.
+
+### Solo vs rooms
+
+| Mode | Who owns scoring | Match feed |
+| --- | --- | --- |
+| Solo | Client `PossessionEngine` | Browser attaches live or replay stream |
+| Room (≤5) | Server `room/session.ts` fans events into per-player engines | Server loads replay JSONL or live stream once |
+
+Clients in a room never trust their own score math — they only send hold start/release.
+
+**MVP limitation:** room state is an in-memory `Map` on the Node process (`globalThis`). Fine for one Railway/Vercel instance and multi-tab demos; not durable across multi-instance scale-out.
 
 ## TxLINE endpoints used
 
-Verified against [Quickstart](https://txline.txodds.com/documentation/quickstart), [World Cup Free Tier](https://txline.txodds.com/documentation/worldcup), [Streaming Data](https://txline.txodds.com/documentation/examples/streaming-data), and the published OpenAPI (`/docs/docs.yaml`).
+Verified against TxLINE Quickstart, World Cup free tier docs, Streaming Data examples, and OpenAPI.
 
-| Endpoint | Transport | What we use it for |
+| Endpoint | Transport | Role in NERVE |
 | --- | --- | --- |
-| `POST {origin}/auth/guest/start` | HTTPS JSON | Guest JWT (`Authorization: Bearer …`) |
-| `GET {origin}/api/scores/stream?fixtureId=` | SSE | Match actions (`action`), game state, scoreSoccer, clock → goals / shots / corners / cards / kickoff / HT / FT |
-| `GET {origin}/api/odds/stream?fixtureId=` | SSE | StablePrice odds (`SuperOddsType`, `PriceNames`, `Prices`, `Pct`) → `OddsSnapshot.pGoalSoon` |
-| `GET {origin}/api/scores/historical/{fixtureId}` | HTTPS JSON | Documented for research / backfill (recorder path); not required for demo replay |
+| `POST {origin}/auth/guest/start` | HTTPS JSON | Guest JWT |
+| `GET {origin}/api/scores/stream?fixtureId=` | SSE | **Primary:** `possession`, `possessionType` (Safe/Attack/Danger/HighDanger), goals, shots, corners, cards, clock, HT/FT |
+| `GET {origin}/api/odds/stream?fixtureId=` | SSE | StablePrice odds (secondary / tooling) |
+| `GET {origin}/api/fixtures/snapshot` | HTTPS JSON | Live fixture discovery for the lobby |
+| `GET {origin}/api/scores/historical/{fixtureId}` | HTTPS JSON | Optional recorder / research path |
 
-**Auth headers (data requests):** `Authorization: Bearer ${jwt}` + `X-Api-Token: ${apiToken}` from `/api/token/activate` after on-chain `subscribe` (free World Cup tiers 1 / 12 require no TxL purchase, but do need SOL for the subscribe tx).
+**Auth on upstream data requests:** `Authorization: Bearer ${jwt}` + `X-Api-Token: ${apiToken}`.
 
-**Network origins:** mainnet `https://txline.txodds.com`, devnet `https://txline-dev.txodds.com`.
+**Origins:** mainnet `https://txline.txodds.com`, devnet `https://txline-dev.txodds.com`.
 
-Browser clients talk to **same-origin proxies** `/api/txline/odds-stream` and `/api/txline/scores-stream`, which attach credentials server-side.
+Browser clients only call **same-origin** proxies:
 
-## Danger-model derivation
+- `/api/txline/scores-stream`
+- `/api/txline/odds-stream`
+- `/api/live-status`
 
-Order of preference (`src/game/danger.ts`):
+API tokens and JWTs are read from server env and **never** shipped to the client bundle.
 
-1. **Next-goal / short-horizon markets** — if `SuperOddsType` looks like NextGoal, take demargined `Pct` for the Yes leg (else implied probability from `Prices` ÷ 1000 as decimal odds, overround-normalized).
-2. **Over/under totals** — Over percentage scaled into a short-horizon proxy (shortening Over ⇒ rising `pGoalSoon`).
-3. **Event-intensity fallback** (always available via `USE_INTENSITY_FALLBACK`) — rolling 5-minute window of shots / corners / cards with exponential decay.
+## Possession normalization
 
-The meter display is an EMA of `pGoalSoon` (~10s half-life) plus short spikes on shot/corner events. Multiplier growth:
+`src/streams/normalize.ts` maps TxLINE shapes into:
 
-```
-danger = clamp(pGoalSoon / P_REF, 0.25, 4.0)   // P_REF = 0.08
-growthPerSecond = BASE_GROWTH * danger         // BASE_GROWTH = 0.010
-multiplier *= (1 + growthPerSecond * dt)
-```
+- `possessionTeam`: `"home" | "away" | null`
+- `possessionIntensity`: `"Safe" | "Attack" | "Danger" | "HighDanger" | null`
 
-`dt` is **game-time** from the stream, so replay at 10x preserves the same risk curve as live.
+`possessionType` is accepted as a string (`AttackPossession`) or object key (`{ AttackPossession: {} }`), matching OpenAPI oneOf encodings.
+
+Turnover confirmation (engine config):
+
+- 2 consecutive updates for the new team, **or**
+- new team stable for ~1.5s wall time
+
+Unknown / stale possession → scoring pauses, HOLD disabled, UI shows **SYNCING LIVE POSSESSION**.
 
 ## Simulated vs real
 
 | Piece | Real / simulated |
 | --- | --- |
-| Match events & odds in **live** mode | **Real** TxLINE SSE (when credentials + covered fixture available) |
-| Bundled `demo-match.jsonl` | **Synthesized** but shaped like TxLINE odds/scores payloads |
-| Ghost players & ticker | **Simulated** personalities |
-| Player balances / leaderboard | Local + optional Vercel KV — **not** on-chain |
-| Wallet connect | **Real** `@solana/wallet-adapter` (`WalletMultiButton` + Phantom/Solflare) — **identity only**, no custom connectors, no transactions |
+| Live match events | **Real** TxLINE SSE when `TXLINE_API_TOKEN` (+ fixture) is configured |
+| Bundled `demo-match.jsonl` | **Synthesized**, TxLINE-shaped (includes possession arcs) |
+| Solo opponents | **None** — personal best only |
+| Room opponents | **Real** browser clients |
+| Scores / holds | Virtual points — **not** on-chain |
+| Solana wallet | Optional `@solana/wallet-adapter` identity — **no game transactions** |
+| TxLINE on Solana | Data product is Solana-anchored by TxODDS; NERVE consumes the API |
 
 ## Key source map
 
-- `src/game/` — pure engine (no React)
-- `src/streams/` — MatchStream, normalize, live, replay
-- `scripts/record.ts` / `scripts/synthesize.ts` — feed tooling
-- `src/ui/` — single-screen lobby + in-round + crash overlay
+| Path | Role |
+| --- | --- |
+| `src/game/possessionEngine.ts` | Pure possession scoring engine |
+| `src/game/config.ts` | Rates, turnover, sessions, sponsor ticker |
+| `src/streams/` | types, normalize, live, replay |
+| `src/room/store.ts` + `session.ts` | Rooms + server-authoritative holds |
+| `src/ui/GameApp.tsx` | Lobby → setup → live game UI |
+| `scripts/synthesize.ts` | Regenerates demo JSONL with possession |
+| `src/app/api/txline/*` | Credentialed SSE proxies |
+
+## Security notes for operators
+
+- Keep secrets in the host env dashboard (Railway / Vercel). Never commit `.env.local`.
+- `.gitignore` already ignores `.env` / `.env.*` except `.env.example` (empty placeholders).
+- `NEXT_PUBLIC_*` values are visible in the browser by design — only put non-secrets there (e.g. fixture id).
+- Proxies return 503 when live is not configured; the product falls back to replay.
