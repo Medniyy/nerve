@@ -33,6 +33,11 @@ yarn-error.log*
 
 # local design / working notes (not for the public repo)
 /DESIGN-SPEC.md
+
+# raw oversized recordings (compressed copies live under public/)
+/hophop.mp4
+*.mov
+
 /notes/
 
 # vercel
