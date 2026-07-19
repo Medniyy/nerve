@@ -30,7 +30,7 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set) => ({
   screen: "lobby",
   mode: "replay",
-  speed: 10,
+  speed: 2,
   identity: null,
   snap: null,
   soundOn: false,

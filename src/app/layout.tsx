@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NERVE — Live in-play football markets",
+  title: "NERVE — Cash out before the goal",
   description:
-    "Take a side on the next real football moment. Watch your position move with live TxLINE odds and cash out — or hold to settlement — against the crowd on Solana.",
+    "A crash-style nerve game on real football data. The multiplier climbs while nobody scores — cash out before a real goal crashes the round, or play a room with up to 5 friends.",
   openGraph: {
-    title: "NERVE — Live in-play football markets",
+    title: "NERVE — Cash out before the goal",
     description:
-      "Take a side on the next real football moment, watch it move with live data, settle against the crowd on Solana.",
+      "The multiplier climbs while nobody scores. Cash out before a real goal crashes the round — solo or in a room with friends.",
     type: "website",
   },
 };

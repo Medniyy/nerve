@@ -57,6 +57,9 @@ export function DangerMeter({ level, zone, cause }: Props) {
         <span aria-hidden>{calm ? "—" : "↗"}</span>
         <p>{causeText}</p>
       </div>
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-volt/70">
+        Powered by TxLINE match data
+      </p>
     </section>
   );
 }

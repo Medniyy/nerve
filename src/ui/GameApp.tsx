@@ -31,6 +31,7 @@ import { MatchStrip } from "@/ui/MatchStrip";
 import { MultiplierDisplay } from "@/ui/MultiplierDisplay";
 import { BoardPanel } from "@/ui/SideRail";
 import { Walkthrough } from "@/ui/Walkthrough";
+import type { RoomState } from "@/room/store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const WALKTHROUGH_KEY = "nerve-walkthrough-seen";
@@ -42,7 +43,7 @@ interface LiveFixture {
   startTime: number;
 }
 
-export function GameApp() {
+export function GameApp({ roomCode }: { roomCode?: string } = {}) {
   const screen = useGameStore((s) => s.screen);
   const mode = useGameStore((s) => s.mode);
   const speed = useGameStore((s) => s.speed);
@@ -66,7 +67,9 @@ export function GameApp() {
   const [showCrash, setShowCrash] = useState(false);
   const [showBoard, setShowBoard] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [room, setRoom] = useState<RoomState | null>(null);
   const lastCrashKey = useRef<string | null>(null);
+  const autoStartedRef = useRef(false);
 
   // Zero-friction start: everyone gets a guest identity immediately.
   useEffect(() => {
@@ -77,6 +80,25 @@ export function GameApp() {
   useEffect(() => {
     if (!localStorage.getItem(WALKTHROUGH_KEY)) setShowHelp(true);
   }, []);
+
+  // Room mode: poll shared roster + leaderboard while roomCode is set.
+  useEffect(() => {
+    if (!roomCode) return;
+    let cancelled = false;
+    const poll = () =>
+      fetch(`/api/room/${roomCode}`)
+        .then((r) => r.json())
+        .then((d: { ok: boolean; room?: RoomState }) => {
+          if (!cancelled && d.ok && d.room) setRoom(d.room);
+        })
+        .catch(() => {});
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [roomCode]);
 
   const closeHelp = useCallback(() => {
     localStorage.setItem(WALKTHROUGH_KEY, "1");
@@ -118,8 +140,25 @@ export function GameApp() {
         balance: s.balance,
       });
       setBoard(entries);
+      if (roomCode) {
+        fetch(`/api/room/${roomCode}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "score",
+            playerId: identity.key,
+            label: identity.label,
+            balance: s.balance,
+          }),
+        })
+          .then((r) => r.json())
+          .then((d: { ok: boolean; room?: RoomState }) => {
+            if (d.ok && d.room) setRoom(d.room);
+          })
+          .catch(() => {});
+      }
     },
-    [identity]
+    [identity, roomCode]
   );
 
   const stopGame = useCallback(() => {
@@ -241,6 +280,17 @@ export function GameApp() {
     stopGame,
   ]);
 
+  // Room mode: auto-start once identity + room are ready, skipping the manual lobby.
+  useEffect(() => {
+    if (!roomCode || !room || !identity || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    if (room.mode === "live") {
+      startLive();
+    } else {
+      void startReplay();
+    }
+  }, [roomCode, room, identity, startLive, startReplay]);
+
   useEffect(() => {
     if (mode === "replay" && replayRef.current) {
       replayRef.current.setSpeed(speed);
@@ -255,6 +305,13 @@ export function GameApp() {
     stopGame();
     setScreen("lobby");
   }, [stopGame, setScreen]);
+
+  const activeBoard: LeaderboardEntry[] =
+    roomCode && room
+      ? [...room.players]
+          .sort((a, b) => b.balance - a.balance)
+          .map((p) => ({ key: p.id, label: p.label, balance: p.balance }))
+      : board;
 
   if (screen === "lobby") {
     return (
@@ -289,6 +346,21 @@ export function GameApp() {
         }`}
         aria-hidden
       />
+
+      {roomCode && room && (
+        <div className="room-banner relative z-10 mx-auto flex w-full max-w-[1240px] items-center justify-between px-4 py-1 font-mono text-[11px] text-white/60">
+          <span>
+            Room <strong className="text-volt">{roomCode}</strong> · {room.players.length}/{room.maxPlayers}
+          </span>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/r/${roomCode}`)}
+            className="text-white/50 underline decoration-white/20 underline-offset-2 hover:text-white/80"
+          >
+            Copy invite link
+          </button>
+        </div>
+      )}
 
       {s && (
         <div className="relative z-10">
@@ -353,7 +425,7 @@ export function GameApp() {
           <aside className="board-rail hidden p-5 lg:my-3 lg:block">
             <BoardPanel
               snap={s}
-              board={board}
+              board={activeBoard}
               playerKey={identity?.key}
               soundOn={soundOn}
               onToggleSound={() => setSoundOn(!soundOn)}
@@ -403,7 +475,7 @@ export function GameApp() {
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
             <BoardPanel
               snap={s}
-              board={board}
+              board={activeBoard}
               playerKey={identity?.key}
               soundOn={soundOn}
               onToggleSound={() => setSoundOn(!soundOn)}

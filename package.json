@@ -12,11 +12,9 @@
     "synthesize": "tsx scripts/synthesize.ts",
     "record": "tsx scripts/record.ts",
     "replay:console": "tsx scripts/replay-console.ts",
-    "headless": "tsx scripts/headless-play.ts",
-    "smoke:sides-devnet": "tsx scripts/smoke-sides-devnet.ts"
+    "headless": "tsx scripts/headless-play.ts"
   },
   "dependencies": {
-    "@solana/spl-token": "^0.4.15",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.29",
     "@solana/wallet-adapter-react": "^0.15.39",
@@ -25,6 +23,7 @@
     "@solana/web3.js": "^1.98.4",
     "@vercel/kv": "^3.0.0",
     "next": "14.2.35",
+    "qrcode.react": "^4.2.0",
     "react": "^18",
     "react-dom": "^18",
     "zustand": "^5.0.14"

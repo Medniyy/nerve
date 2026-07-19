@@ -2,11 +2,25 @@
 
 A crash-style nerve game on **real football data**. The multiplier climbs while nobody scores. You HOLD with virtual points and must cash out before a real goal crashes the round. A danger meter — driven by live betting-market odds — warns when the market smells a goal. One screen. One button. Optimal-stopping tension on TxLINE match feeds.
 
+## Hackathon submission
+
+Built for the **TxODDS × Solana World Cup Hackathon** ($50K prize pool, three tracks: Markets, Trading Agents, Fan Experiences).
+
+- **Track: Fan Experiences** — NERVE is a consumer-facing engagement game, not a trading product: it turns live match odds into a one-tap "hold or cash out" tension loop, solo or in a 5-player co-op room.
+- **Live demo:** _add your deployed URL here_
+- **TxLINE is the primary data source**, not a decoration — see [How TxLINE powers the game](#how-txline-powers-the-game) below and the endpoint-by-endpoint breakdown in [`docs/TECHNICAL.md`](./docs/TECHNICAL.md).
+- **Try it in under 10 seconds, zero setup:** open the live demo (or run locally, see [Local development](#local-development)) → **Play as guest** → **Play now**. No wallet, no signup.
+- API feedback for TxODDS organizers/judges: [`docs/API-FEEDBACK.md`](./docs/API-FEEDBACK.md).
+
 ## How to play
 
 - Press **HOLD** to stake 100 virtual points when a round is open.
 - Watch the multiplier climb. The hotter the danger meter, the faster it grows.
 - Press **CASH OUT** before a goal — or get caught when the ball hits the net.
+
+## Rooms — play with friends
+
+Create a room from the lobby to get a short code, a shareable link, and a QR code. Up to 5 players can join the same room, watch the same match, and see a shared roster + leaderboard — each player holds and cashes out on their own.
 
 ## How TxLINE powers the game
 
@@ -58,15 +72,23 @@ npm run record -- <matchId> # append live TxLINE SSE → recordings/<matchId>.js
 
 Copy `.env.example` → `.env.local`.
 
-## Deploy (Vercel)
+## Deploy
+
+**Railway** (this repo ships a `nixpacks.toml` pinning the Node/Next.js build):
+
+1. Push this repo and import in Railway.
+2. Set env vars above (live optional — replay works without them).
+3. Deploy. Open the URL → **Play as guest** → **Play now**.
+
+**Vercel** works too (no extra config needed):
 
 1. Push this repo and import in Vercel.
 2. Set env vars above (live optional — replay works without them).
-3. Deploy. Open the URL → **Play as guest** → **Play a replay**.
+3. Deploy. Open the URL → **Play as guest** → **Play now**.
 
 ## Future
 
-- Real-time multiplayer rounds (shared crash clock across wallets)
+- Tighter room sync (server-broadcast shared crash clock, not just a shared roster/leaderboard)
 - Sponsored matches / branded danger themes
 - Premium cosmetic rounds (still virtual points)
 - Licensed real-stakes version as a **separate, regulated** product — never inside this build

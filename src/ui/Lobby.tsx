@@ -2,6 +2,7 @@
 
 import { IdentityBar } from "@/ui/IdentityBar";
 import { SolanaBadge } from "@/ui/SolanaBadge";
+import { TxLineBadge } from "@/ui/TxLineBadge";
 import { useGameStore } from "@/store/gameStore";
 
 interface LobbyProps {
@@ -59,14 +60,17 @@ export function Lobby({
       <div className="pointer-events-none absolute inset-0 bg-pitch-scene" aria-hidden />
       <div className="pointer-events-none absolute inset-0 bg-vignette" aria-hidden />
 
-      <header className="lobby-header relative z-10 flex items-center justify-between">
-        <SolanaBadge />
+      <header className="lobby-header relative z-10 flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <TxLineBadge />
+          <SolanaBadge />
+        </div>
         <IdentityBar />
       </header>
 
       <main className="lobby-main relative z-10 flex flex-1">
         <section className="lobby-copy">
-          <p className="rise-in lobby-kicker">Real match. Real pressure. One tap.</p>
+          <p className="rise-in lobby-kicker">Driven by live match data. Timed by your nerve.</p>
           <h1 className="rise-in lobby-wordmark" style={{ animationDelay: "60ms" }}>NER<span>V</span>E</h1>
           <p className="rise-in lobby-pitch" style={{ animationDelay: "120ms" }}>
             The number climbs while nobody scores. Cash out before the next goal—or get caught holding.
@@ -101,10 +105,10 @@ export function Lobby({
               )}
             </button>
           )}
-          <a href="/sides" className="lobby-live">
-            <span className="lobby-live-title">⚔ Sides — pick GOAL or HOLD vs the crowd</span>
+          <a href="/r" className="lobby-live">
+            <span className="lobby-live-title">👥 Play with friends</span>
             <span className="lobby-live-sub">
-              Sealed crowd game · test USDC on devnet · new
+              Create a room, share the QR · up to 5 players · new
             </span>
           </a>
           <button

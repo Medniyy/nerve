@@ -57,7 +57,7 @@ export const GAME_CONFIG = {
   GHOST_PANIC_WINDOW_MS: 2000,
 
   /** Replay speeds offered in UI */
-  REPLAY_SPEEDS: [1, 5, 10, 30] as const,
+  REPLAY_SPEEDS: [1, 2, 5, 10] as const,
 
   /** Match display defaults for synthesized demo */
   DEMO_HOME: "Brazil",

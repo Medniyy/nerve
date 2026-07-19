@@ -54,7 +54,7 @@ export function MatchStrip({
         <span className="ml-2 text-white/45">{snap.matchMinute}&apos;</span>
         {mode === "live" && (
           <span className="live-flag">
-            <i /> live
+            <i /> live via TxLINE
           </span>
         )}
       </div>
