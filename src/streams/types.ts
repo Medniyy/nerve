@@ -1,3 +1,5 @@
+import type { PossessionIntensity } from "@/game/config";
+
 export interface OddsSnapshot {
   /** Estimated probability of a goal in the next ~5 min, 0..1 */
   pGoalSoon: number;
@@ -16,6 +18,7 @@ export type MatchEventType =
   | "kickoff"
   | "halftime"
   | "fulltime"
+  | "possession"
   | "raw";
 
 export interface MatchEvent {
@@ -32,6 +35,12 @@ export interface MatchEvent {
   awayTeam?: string;
   homeScore?: number;
   awayScore?: number;
+  /** Team currently in possession (TxLINE `possession` participant) */
+  possessionTeam?: "home" | "away" | null;
+  /** Safe → Attack → Danger → HighDanger */
+  possessionIntensity?: PossessionIntensity | null;
+  /** Server / feed timestamp when available (prefer over client clock) */
+  serverTs?: number;
 }
 
 export interface MatchStream {

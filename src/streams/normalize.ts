@@ -1,3 +1,4 @@
+import type { PossessionIntensity } from "@/game/config";
 import { pFromOddsPayload } from "@/game/danger";
 import type {
   MatchEvent,
@@ -13,6 +14,10 @@ import type {
  *
  * Scores: https://txline.txodds.com/api/scores/stream
  * Odds:   https://txline.txodds.com/api/odds/stream
+ *
+ * Possession: SoccerFixtureEvent.possession (participant 1|2) +
+ * possessionType oneOf SafePossession | AttackPossession |
+ * DangerPossession | HighDangerPossession
  */
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -23,7 +28,6 @@ function participantToTeam(
   participant: unknown,
   participant1IsHome?: boolean
 ): "home" | "away" | undefined {
-  // TxLINE: participant 1 / 2; participant1IsHome indicates which is home
   const p = Number(participant);
   if (!Number.isFinite(p)) return undefined;
   const p1Home = participant1IsHome !== false;
@@ -43,7 +47,6 @@ function extractMinute(payload: Record<string, unknown>): number | undefined {
   const data = asRecord(payload.data) ?? asRecord(payload.Data);
   if (data && typeof data.Minutes === "number") return data.Minutes;
 
-  // SoccerFixtureClock.seconds → minute
   const clock =
     asRecord(payload.clock) ??
     asRecord(payload.Clock) ??
@@ -77,6 +80,96 @@ function extractScores(payload: Record<string, unknown>): {
   return {};
 }
 
+const INTENSITY_KEYS: Record<string, PossessionIntensity> = {
+  SafePossession: "Safe",
+  Safe: "Safe",
+  AttackPossession: "Attack",
+  Attack: "Attack",
+  DangerPossession: "Danger",
+  Danger: "Danger",
+  HighDangerPossession: "HighDanger",
+  HighDanger: "HighDanger",
+};
+
+export function parsePossessionIntensity(
+  raw: unknown
+): PossessionIntensity | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    return INTENSITY_KEYS[raw] ?? INTENSITY_KEYS[raw.replace(/\s/g, "")] ?? null;
+  }
+  const rec = asRecord(raw);
+  if (!rec) return null;
+  for (const key of Object.keys(rec)) {
+    const mapped = INTENSITY_KEYS[key];
+    if (mapped) return mapped;
+  }
+  // Nested discriminator { type: "AttackPossession" } etc.
+  const type = rec.type ?? rec.Type ?? rec._type;
+  if (typeof type === "string") {
+    return INTENSITY_KEYS[type] ?? null;
+  }
+  return null;
+}
+
+export function extractPossession(
+  payload: Record<string, unknown>
+): {
+  team: "home" | "away" | null;
+  intensity: PossessionIntensity | null;
+} {
+  // Synthetic / already-normalized fields
+  if (payload.possessionTeam === "home" || payload.possessionTeam === "away") {
+    const intensity =
+      parsePossessionIntensity(payload.possessionIntensity) ??
+      parsePossessionIntensity(payload.possessionType) ??
+      null;
+    return { team: payload.possessionTeam, intensity };
+  }
+  if (payload.possessionTeam === null) {
+    return { team: null, intensity: null };
+  }
+
+  const participant1IsHome = payload.participant1IsHome as boolean | undefined;
+  const possessionRaw = payload.possession ?? payload.Possession;
+  let team: "home" | "away" | null | undefined;
+
+  if (possessionRaw === null || possessionRaw === undefined || possessionRaw === 0) {
+    team = possessionRaw === 0 ? null : undefined;
+  } else if (typeof possessionRaw === "string") {
+    if (possessionRaw === "home" || possessionRaw === "away") team = possessionRaw;
+    else team = participantToTeam(possessionRaw, participant1IsHome) ?? null;
+  } else {
+    team = participantToTeam(possessionRaw, participant1IsHome) ?? null;
+  }
+
+  const intensity = parsePossessionIntensity(
+    payload.possessionType ?? payload.PossessionType ?? payload.possessionIntensity
+  );
+
+  if (team === undefined && intensity == null) {
+    return { team: null, intensity: null };
+  }
+  return {
+    team: team === undefined ? null : team,
+    intensity,
+  };
+}
+
+function extractServerTs(payload: Record<string, unknown>): number | undefined {
+  const candidates = [
+    payload.Ts,
+    payload.ts,
+    payload.timestamp,
+    payload.Timestamp,
+    payload.updateDateMillis,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "number" && Number.isFinite(c)) return c;
+  }
+  return undefined;
+}
+
 function mapAction(action: string): MatchEventType | null {
   const a = action.toLowerCase().replace(/[\s-]/g, "_");
   if (a === "goal" || a === "owngoal" || a === "own_goal" || a === "penalty_goal")
@@ -102,12 +195,12 @@ function mapAction(action: string): MatchEventType | null {
   )
     return "fulltime";
   if (a === "clock" || a === "time") return "clock";
+  if (a === "possession" || a === "poss") return "possession";
   return null;
 }
 
 function mapGameState(state: string): MatchEventType | null {
   const s = state.toUpperCase();
-  // SoccerFixtureStatus encodings from docs
   if (s === "H1" || s === "H2" || s === "ET1" || s === "ET2") return "clock";
   if (s === "HT" || s === "HTET") return "halftime";
   if (s === "F" || s === "FET" || s === "FPE" || s === "END") return "fulltime";
@@ -123,16 +216,18 @@ export function normalizeOddsPayload(
   const p = pFromOddsPayload(payload);
   const pGoalSoon = p ?? 0.05;
   const drift =
-    prevP != null ? (pGoalSoon - prevP) * 6 : 0; // rough /min if ~10s cadence
+    prevP != null ? (pGoalSoon - prevP) * 6 : 0;
   const odds: OddsSnapshot = {
     pGoalSoon,
     drift,
     raw: payload,
   };
+  const rec = asRecord(payload) ?? {};
   return {
     ts: streamLocalTs,
     type: "odds",
     odds,
+    serverTs: extractServerTs(rec),
     raw: payload,
   };
 }
@@ -148,11 +243,6 @@ export function normalizeScoresPayload(
   let type: MatchEventType =
     mapAction(action) ?? mapGameState(gameState) ?? "raw";
 
-  // Possible-event flags can hint at danger without a firm action
-  const possible =
-    asRecord(rec.parti1StateSoccer) ??
-    asRecord(rec.parti2StateSoccer);
-
   const minute = extractMinute(rec);
   const scores = extractScores(rec);
   const team = participantToTeam(
@@ -160,7 +250,16 @@ export function normalizeScoresPayload(
     rec.participant1IsHome as boolean | undefined
   );
 
-  // Synthetic payloads may set type directly
+  const possession = extractPossession(rec);
+  const hasPossessionSignal =
+    possession.team != null ||
+    possession.intensity != null ||
+    "possession" in rec ||
+    "Possession" in rec ||
+    "possessionType" in rec ||
+    "possessionTeam" in rec ||
+    "possessionIntensity" in rec;
+
   const synthType = rec._type ?? rec.type;
   if (typeof synthType === "string" && mapAction(synthType)) {
     type = mapAction(String(synthType))!;
@@ -175,6 +274,7 @@ export function normalizeScoresPayload(
       "kickoff",
       "halftime",
       "fulltime",
+      "possession",
       "raw",
     ];
     if (allowed.includes(synthType as MatchEventType)) {
@@ -182,7 +282,10 @@ export function normalizeScoresPayload(
     }
   }
 
-  void possible;
+  // Promote raw events that carry possession to type "possession"
+  if (type === "raw" && hasPossessionSignal && possession.team != null) {
+    type = "possession";
+  }
 
   return {
     ts: streamLocalTs,
@@ -197,6 +300,9 @@ export function normalizeScoresPayload(
     awayScore:
       scores.away ??
       (typeof rec.awayScore === "number" ? rec.awayScore : undefined),
+    possessionTeam: hasPossessionSignal ? possession.team : undefined,
+    possessionIntensity: hasPossessionSignal ? possession.intensity : undefined,
+    serverTs: extractServerTs(rec),
     odds: rec.odds as OddsSnapshot | undefined,
     raw: payload,
   };
@@ -217,7 +323,6 @@ export function normalizeRecordingLine(
     return normalizeScoresPayload(payload, streamLocalTs);
   }
 
-  // Heuristic: Odds payloads have SuperOddsType / FixtureId capital F
   const rec = asRecord(payload);
   if (rec && ("SuperOddsType" in rec || "PriceNames" in rec || "Prices" in rec)) {
     return normalizeOddsPayload(payload, streamLocalTs, prevOddsP);

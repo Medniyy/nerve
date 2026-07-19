@@ -5,15 +5,20 @@ import { SolanaBadge } from "@/ui/SolanaBadge";
 import { TxLineBadge } from "@/ui/TxLineBadge";
 import { useGameStore } from "@/store/gameStore";
 
+interface Fixture {
+  id: number;
+  home: string;
+  away: string;
+  startTime: number;
+}
+
 interface LobbyProps {
   liveAvailable: boolean;
-  liveFixture: {
-    id: number;
-    home: string;
-    away: string;
-    startTime: number;
-  } | null;
-  onPlayReplay: () => void;
+  liveFixture: Fixture | null;
+  fixtures: Fixture[];
+  selectedFixtureId: number | null;
+  onSelectFixture: (id: number) => void;
+  onPlaySolo: () => void;
   onPlayLive: () => void;
   onHelp: () => void;
 }
@@ -21,7 +26,10 @@ interface LobbyProps {
 export function Lobby({
   liveAvailable,
   liveFixture,
-  onPlayReplay,
+  fixtures,
+  selectedFixtureId,
+  onSelectFixture,
+  onPlaySolo,
   onPlayLive,
   onHelp,
 }: LobbyProps) {
@@ -60,71 +68,116 @@ export function Lobby({
       <div className="pointer-events-none absolute inset-0 bg-pitch-scene" aria-hidden />
       <div className="pointer-events-none absolute inset-0 bg-vignette" aria-hidden />
 
-      <header className="lobby-header relative z-10 flex items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <header className="lobby-header relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-center gap-2 sm:justify-start">
           <TxLineBadge />
           <SolanaBadge />
         </div>
-        <IdentityBar />
+        <div className="flex justify-center sm:justify-end">
+          <IdentityBar />
+        </div>
       </header>
 
       <main className="lobby-main relative z-10 flex flex-1">
         <section className="lobby-copy">
-          <h1 className="rise-in lobby-wordmark">NER<span>V</span>E</h1>
+          <h1 className="rise-in lobby-wordmark">
+            NER<span>V</span>E
+          </h1>
           <p className="rise-in lobby-pitch" style={{ animationDelay: "60ms" }}>
-            Turn live football into a shared adrenaline game with friends.
+            Feel every possession. Share the adrenaline.
           </p>
 
           <div
-          className="rise-in lobby-actions"
-          style={{ animationDelay: "120ms" }}
-        >
-          <button
-            type="button"
-            disabled={!identity}
-            onClick={onPlayReplay}
-            className="lobby-play"
+            className="rise-in lobby-actions"
+            style={{ animationDelay: "120ms" }}
           >
-            <span>Play now</span><small>Instant guest entry →</small>
-          </button>
-          {liveAvailable && (
             <button
               type="button"
               disabled={!identity}
-              onClick={onPlayLive}
-              className="lobby-live"
+              onClick={onPlaySolo}
+              className="lobby-btn is-primary"
             >
-              <span className="lobby-live-title">
-                <i /> {liveLabel}
-              </span>
-              {liveSub && (
-                <span className="lobby-live-sub">
-                  Real World Cup data · {liveSub}
-                </span>
-              )}
+              <span className="lobby-btn-title">Play Solo</span>
+              <span className="lobby-btn-sub">Demo match · choose duration</span>
             </button>
-          )}
-          <a href="/r" className="lobby-live">
-            <span className="lobby-live-title">👥 Play with friends</span>
-            <span className="lobby-live-sub">
-              Create a room, share the QR · up to 5 players · new
-            </span>
-          </a>
-          <button
-            type="button"
-            onClick={onHelp}
-            className="lobby-help"
-          >
-            How does it work?
-          </button>
+            {liveAvailable && (
+              <>
+                {fixtures.length > 1 && (
+                  <select
+                    aria-label="Choose live match"
+                    value={selectedFixtureId ?? ""}
+                    onChange={(e) => onSelectFixture(Number(e.target.value))}
+                    className="match-select"
+                  >
+                    {fixtures.map((f) => {
+                      const off = f.startTime > 0 && f.startTime <= Date.now();
+                      const t =
+                        f.startTime > 0 && !off
+                          ? new Date(f.startTime).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "LIVE";
+                      return (
+                        <option key={f.id} value={f.id}>
+                          {f.home} v {f.away} · {t}
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+                <button
+                  type="button"
+                  disabled={!identity}
+                  onClick={onPlayLive}
+                  className="lobby-btn is-secondary"
+                >
+                  <span className="lobby-btn-title">
+                    <i className="lobby-btn-dot" /> {liveLabel}
+                  </span>
+                  <span className="lobby-btn-sub">
+                    Real World Cup data{liveSub ? ` · ${liveSub}` : ""}
+                  </span>
+                </button>
+              </>
+            )}
+            <a href="/r" className="lobby-btn is-secondary">
+              <span className="lobby-btn-title">Create Room</span>
+              <span className="lobby-btn-sub">Share a code or QR · up to 5 players</span>
+            </a>
+            <a href="/r" className="lobby-btn is-secondary">
+              <span className="lobby-btn-title">Join Room</span>
+              <span className="lobby-btn-sub">Open a friend&apos;s room link</span>
+            </a>
+            <button type="button" onClick={onHelp} className="lobby-howto">
+              How does it work?
+            </button>
           </div>
         </section>
 
-        <section className="lobby-demo rise-in" style={{ animationDelay: "150ms" }} aria-label="Nerve game preview">
-          <div className="demo-score"><span>France</span><strong>0–0</strong><span>England</span><i>67&apos;</i></div>
-          <div className="demo-flight"><i className="demo-path" /><i className="demo-football">⚽</i><strong>2.47<span>×</span></strong><small>+247 pts</small></div>
-          <div className="demo-weather"><span>⚡</span><div><small>Goal weather</small><strong>Heating up</strong></div><i /></div>
-          <div className="demo-cash">Cash out <strong>247 pts</strong></div>
+        <section
+          className="lobby-demo rise-in"
+          style={{ animationDelay: "150ms" }}
+          aria-label="Nerve game preview"
+        >
+          <div className="demo-score">
+            <span>Brazil</span>
+            <strong>1–0</strong>
+            <span>Argentina</span>
+            <i>23&apos;</i>
+          </div>
+          <p className="demo-poss">BRAZIL IN POSSESSION</p>
+          <div className="demo-meter" aria-label="Attack intensity preview">
+            <span className="seg-safe is-on">Safe</span>
+            <span className="seg-attack is-on">Attack</span>
+            <span className="seg-danger is-on is-current">Danger</span>
+            <span className="seg-highdanger">High</span>
+          </div>
+          <div className="demo-hold">
+            <strong>48</strong>
+            <small>Current Hold · +4/s</small>
+          </div>
+          <div className="demo-cash">Release to lock · Total 312</div>
         </section>
       </main>
     </div>

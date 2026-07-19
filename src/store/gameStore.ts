@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import type { EngineSnapshot } from "@/game/engine";
+import type { PossessionSnapshot } from "@/game/possessionEngine";
+import type { SessionDurationId } from "@/game/config";
 
-export type AppScreen = "lobby" | "playing";
+export type AppScreen = "lobby" | "setup" | "playing" | "results";
 export type FeedMode = "replay" | "live";
 
 export interface PlayerIdentity {
@@ -14,38 +15,42 @@ interface GameStore {
   screen: AppScreen;
   mode: FeedMode;
   speed: number;
+  sessionDurationId: SessionDurationId;
   identity: PlayerIdentity | null;
-  snap: EngineSnapshot | null;
+  snap: PossessionSnapshot | null;
   soundOn: boolean;
-  crashing: boolean;
+  personalBest: number;
   setScreen: (s: AppScreen) => void;
   setMode: (m: FeedMode) => void;
   setSpeed: (n: number) => void;
+  setSessionDurationId: (id: SessionDurationId) => void;
   setIdentity: (id: PlayerIdentity | null) => void;
-  setSnap: (s: EngineSnapshot) => void;
+  setSnap: (s: PossessionSnapshot) => void;
   setSoundOn: (v: boolean) => void;
-  setCrashing: (v: boolean) => void;
+  setPersonalBest: (n: number) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
   screen: "lobby",
   mode: "replay",
   speed: 2,
+  sessionDurationId: "5m",
   identity: null,
   snap: null,
   soundOn: false,
-  crashing: false,
+  personalBest: 0,
   setScreen: (screen) => set({ screen }),
   setMode: (mode) => set({ mode }),
   setSpeed: (speed) => set({ speed }),
+  setSessionDurationId: (sessionDurationId) => set({ sessionDurationId }),
   setIdentity: (identity) => set({ identity }),
   setSnap: (snap) => set({ snap }),
   setSoundOn: (soundOn) => set({ soundOn }),
-  setCrashing: (crashing) => set({ crashing }),
+  setPersonalBest: (personalBest) => set({ personalBest }),
 }));
 
 const GUEST_KEY = "nerve-guest-id";
-const BALANCE_PREFIX = "nerve-balance:";
+const PB_KEY = "nerve-personal-best";
 
 const ADJECTIVES = [
   "swift",
@@ -87,15 +92,18 @@ export function createGuestIdentity(): PlayerIdentity {
   return { key: id, label: id, kind: "guest" };
 }
 
-export function loadBalance(playerKey: string, fallback: number): number {
-  if (typeof window === "undefined") return fallback;
-  const raw = localStorage.getItem(BALANCE_PREFIX + playerKey);
-  if (!raw) return fallback;
+export function loadPersonalBest(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = localStorage.getItem(PB_KEY);
+  if (!raw) return 0;
   const n = Number(raw);
-  return Number.isFinite(n) ? n : fallback;
+  return Number.isFinite(n) ? n : 0;
 }
 
-export function saveBalance(playerKey: string, balance: number): void {
+export function savePersonalBest(score: number): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(BALANCE_PREFIX + playerKey, String(balance));
+  const prev = loadPersonalBest();
+  if (score > prev) {
+    localStorage.setItem(PB_KEY, String(Math.floor(score)));
+  }
 }

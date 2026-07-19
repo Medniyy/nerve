@@ -1,113 +1,136 @@
 "use client";
 
 import { useState } from "react";
+import { BallIcon } from "@/ui/BallIcon";
 
-interface Props {
+interface WalkthroughProps {
   onClose: () => void;
 }
 
-const STEPS = [
-  {
-    accent: "text-volt",
-    bar: "bg-volt",
-    title: "It's a real match",
-    body: "NERVE runs on a real football game, minute by minute. Goals, shots and corners come from a live data feed — not a random number generator.",
-    visual: "match",
-  },
-  {
-    accent: "text-white",
-    bar: "bg-white",
-    title: "Your points multiply while nobody scores",
-    body: "Tap HOLD to risk 100 virtual points. The big number on screen is your multiplier — it climbs as the match stays goalless. Cash out at 2.5× and those 100 become 250. There is no shared prize pot — only your stake × that number.",
-    visual: "climb",
-  },
-  {
-    accent: "text-danger",
-    bar: "bg-danger",
-    title: "A goal crashes everything",
-    body: "The moment anyone scores, the round is over. Still holding? Your 100 points are gone. Tap CASH OUT any time before that to bank your winnings.",
-    visual: "crash",
-  },
-  {
-    accent: "text-amber",
-    bar: "bg-amber",
-    title: "The danger bar is your warning",
-    body: "It reads live betting odds. Green means calm. Red means the market smells a goal coming — that's your cue to get out.",
-    visual: "weather",
-  },
-] as const;
+interface Step {
+  emoji: string;
+  title: string;
+  body: string;
+  visual?: "ladder";
+}
 
-/** First-visit ELI5 walkthrough. Reopen any time via the ? button. */
-export function Walkthrough({ onClose }: Props) {
-  const [step, setStep] = useState(0);
-  const s = STEPS[step];
-  const last = step === STEPS.length - 1;
+const STEPS: Step[] = [
+  {
+    emoji: "⚽",
+    title: "A real match is playing",
+    body: "One team has the ball. The little ball and flag at the top show you who — live from the real game.",
+  },
+  {
+    emoji: "🔥",
+    title: "Attacks get hot",
+    body: "The closer a team is to scoring, the hotter it gets. Hotter attack = more points every second.",
+    visual: "ladder",
+  },
+  {
+    emoji: "👇",
+    title: "Press and HOLD",
+    body: "Hold the button while a team attacks and points pile up. The hotter the attack, the faster they pile.",
+  },
+  {
+    emoji: "🔒",
+    title: "Let go to keep them",
+    body: "Release any time to bank your points into Total Score. Banked points are safe — you can't lose them.",
+  },
+  {
+    emoji: "⚠️",
+    title: "Don't get caught holding",
+    body: "If the ball turns over while you're still holding, you lose the points you hadn't banked yet. Your Total stays safe.",
+  },
+  {
+    emoji: "🏆",
+    title: "Beat the table",
+    body: "Everyone plays the same live match. Bank more than the rest to climb the leaderboard.",
+  },
+];
+
+const LADDER: { label: string; rate: string; cls: string }[] = [
+  { label: "Safe", rate: "+1/s", cls: "seg-safe" },
+  { label: "Attack", rate: "+2/s", cls: "seg-attack" },
+  { label: "Danger", rate: "+4/s", cls: "seg-danger" },
+  { label: "High Danger", rate: "+8/s", cls: "seg-highdanger" },
+];
+
+export function Walkthrough({ onClose }: WalkthroughProps) {
+  const [i, setI] = useState(0);
+  const step = STEPS[i];
+  const last = i === STEPS.length - 1;
+
+  const next = () => (last ? onClose() : setI((n) => n + 1));
+  const back = () => setI((n) => Math.max(0, n - 1));
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/85 p-4 backdrop-blur-sm sm:items-center"
-      role="dialog"
-      aria-modal
-      aria-label="How to play"
-    >
-      <div className="sheet-up w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-card shadow-2xl">
-        <div className={`h-1.5 ${s.bar}`} />
-        <div className="p-6 pb-7">
-          <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-white/40">
-            How to play · {step + 1}/{STEPS.length}
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
+      <div className="wt-card sheet-up w-full max-w-md rounded-2xl border border-white/10 bg-card p-6">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-volt">
+            How to play · {i + 1} / {STEPS.length}
           </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70"
+          >
+            Skip
+          </button>
+        </div>
 
-          <div key={step} className={`walkthrough-visual visual-${s.visual}`} aria-hidden>
-            {s.visual === "match" && <><span>FRA</span><strong>0–0</strong><span>ENG</span></>}
-            {s.visual === "climb" && <><i className="mini-curve" /><i className="mini-ball">⚽</i><strong>2.47×</strong></>}
-            {s.visual === "crash" && <><i className="mini-burst" /><strong>GOAL</strong></>}
-            {s.visual === "weather" && <><span>☀</span><i /><span>⚡</span><strong>Goal danger</strong></>}
+        {/* Fixed-height body so every step is the same size */}
+        <div className="wt-body flex min-h-[15.5rem] flex-col items-center justify-center px-2 py-6 text-center" key={i}>
+          <div className="wt-emoji" aria-hidden>
+            {step.emoji === "⚽" ? (
+              <BallIcon className="wt-ball" />
+            ) : (
+              step.emoji
+            )}
           </div>
-
-          <h2 key={`t-${step}`} className="ticker-in mt-4 font-display text-2xl uppercase leading-tight text-white">
-            {s.title}
-          </h2>
-          <p key={`b-${step}`} className="ticker-in mt-3 text-[15px] leading-relaxed text-white/70">
-            {s.body}
+          <h2 className="mt-4 font-display text-3xl tracking-wide">{step.title}</h2>
+          <p className="mt-3 max-w-xs text-[15px] leading-relaxed text-white/70">
+            {step.body}
           </p>
 
-          <div className="mt-7 flex items-center justify-between">
-            <div className="flex gap-1.5">
-              {STEPS.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  aria-label={`Step ${i + 1}`}
-                  onClick={() => setStep(i)}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === step ? "w-6 bg-white" : "w-1.5 bg-white/25"
-                  }`}
-                />
+          {step.visual === "ladder" && (
+            <div className="wt-ladder mt-5 grid w-full grid-cols-4 gap-1.5">
+              {LADDER.map((l) => (
+                <div key={l.label} className={`wt-ladder-seg ${l.cls}`}>
+                  <span>{l.label}</span>
+                  <strong>{l.rate}</strong>
+                </div>
               ))}
             </div>
-            <div className="flex items-center gap-3">
-              {!last && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-2 py-2 text-sm text-white/40 transition hover:text-white"
-                >
-                  Skip
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => (last ? onClose() : setStep(step + 1))}
-                className={`rounded-full px-6 py-3 font-display text-base uppercase tracking-wide transition active:scale-[0.97] ${
-                  last
-                    ? "cash-glow bg-volt text-pitch"
-                    : "bg-white/10 text-white hover:bg-white/15"
-                }`}
-              >
-                {last ? "Let's play" : "Next"}
-              </button>
-            </div>
-          </div>
+          )}
+        </div>
+
+        <div className="mb-4 flex justify-center gap-1.5" aria-hidden>
+          {STEPS.map((_, d) => (
+            <span
+              key={d}
+              className={`h-1.5 rounded-full transition-all ${
+                d === i ? "w-5 bg-volt" : "w-1.5 bg-white/20"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Back always reserves its slot so the blue button is identical on every step */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={back}
+            disabled={i === 0}
+            className={`wt-back w-24 shrink-0 rounded-xl border border-white/12 px-5 py-3 font-mono text-xs uppercase tracking-[0.15em] text-white/60 hover:text-white ${
+              i === 0 ? "invisible" : ""
+            }`}
+          >
+            Back
+          </button>
+          <button type="button" onClick={next} className="wt-next lobby-play flex-1">
+            <span>{last ? "Let’s play" : "Next"}</span>
+          </button>
         </div>
       </div>
     </div>

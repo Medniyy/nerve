@@ -185,6 +185,8 @@ export class GameEngine {
 
   hold(): boolean {
     if (this.phase !== "open" || this.holding) return false;
+    // One entry per round — cash out is final until the next open.
+    if (this.lastResult?.playerCashedOut) return false;
     const stake = GAME_CONFIG.STAKE;
     if (this.balance < stake) return false;
     this.balance -= stake;
@@ -404,10 +406,11 @@ export class GameEngine {
     this.ghosts = GAME_CONFIG.GHOST_NAMES.map((name, i) => {
       const personality = personalities[i] ?? "balanced";
       const dist = GAME_CONFIG.GHOST_PERSONALITIES[personality];
+      const raw = sampleNormal(dist.mean, dist.std);
       return {
         name,
         personality,
-        threshold: sampleNormal(dist.mean, dist.std),
+        threshold: Math.max(dist.min, raw),
         cashedOut: false,
         cashOutAt: null,
         panicked: false,

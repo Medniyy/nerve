@@ -1,7 +1,8 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { GAME_CONFIG } from "@/game/config";
 import { createGuestIdentity, useGameStore } from "@/store/gameStore";
 import type { RoomState } from "@/room/store";
 
@@ -17,10 +18,19 @@ export function RoomWaitingRoom({ code, onStart }: Props) {
   const [joinUrl, setJoinUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const autoStartedRef = useRef(false);
 
   useEffect(() => {
     if (!identity) setIdentity(createGuestIdentity());
   }, [identity, setIdentity]);
+
+  // 1s clock for the join countdown
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     setJoinUrl(`${window.location.origin}/r/${code}`);
@@ -45,8 +55,13 @@ export function RoomWaitingRoom({ code, onStart }: Props) {
           if (cancelled) return;
           if (d.ok && d.room) {
             setRoom(d.room);
+            if (d.room.started) onStart();
           } else {
-            setError(d.error === "full" ? "Room is full (max 5 players)" : "Room not found");
+            setError(
+              d.error === "full"
+                ? "Room is full (max 5 players)"
+                : "Room not found"
+            );
           }
         })
         .catch(() => {
@@ -54,18 +69,68 @@ export function RoomWaitingRoom({ code, onStart }: Props) {
         });
 
     join();
-    const id = setInterval(join, 3000);
+    const id = setInterval(join, 1500);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
-  }, [code, identity]);
+  }, [code, identity, onStart]);
 
   const copyLink = () => {
     void navigator.clipboard.writeText(joinUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  const startSession = async () => {
+    if (!identity || !room || starting) return;
+    setStarting(true);
+    try {
+      const res = await fetch(`/api/room/${code}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "start",
+          playerId: identity.key,
+          label: identity.label,
+        }),
+      });
+      const data = (await res.json()) as { ok: boolean; room?: RoomState };
+      if (data.ok) {
+        onStart();
+      } else {
+        setStarting(false);
+      }
+    } catch {
+      setStarting(false);
+    }
+  };
+
+  const isHost = room?.hostId === identity?.key;
+
+  const startsAt = room ? room.createdAt + GAME_CONFIG.ROOM_JOIN_WINDOW_MS : null;
+  const remainMs = startsAt != null ? Math.max(0, startsAt - now) : null;
+  const countdown =
+    remainMs != null
+      ? `${Math.floor(remainMs / 60000)}:${String(
+          Math.floor((remainMs % 60000) / 1000)
+        ).padStart(2, "0")}`
+      : "";
+
+  // Host auto-starts the session when the 2-minute join window elapses.
+  useEffect(() => {
+    if (
+      isHost &&
+      room &&
+      !room.started &&
+      remainMs === 0 &&
+      !autoStartedRef.current
+    ) {
+      autoStartedRef.current = true;
+      void startSession();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHost, room?.started, remainMs]);
 
   return (
     <div className="lobby-shell grain relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden px-4 text-center">
@@ -78,6 +143,14 @@ export function RoomWaitingRoom({ code, onStart }: Props) {
             Room code
           </p>
           <h1 className="font-display text-6xl tracking-wide text-volt">{code}</h1>
+          {room && (
+            <p className="mt-2 font-mono text-[11px] text-white/45">
+              {room.sessionDurationId === "full"
+                ? "Full match"
+                : room.sessionDurationId}{" "}
+              · {room.mode === "live" ? "Live" : "Demo"}
+            </p>
+          )}
         </div>
 
         {error ? (
@@ -88,7 +161,12 @@ export function RoomWaitingRoom({ code, onStart }: Props) {
           <>
             <div className="rounded-2xl border border-white/10 bg-card p-4">
               {joinUrl && (
-                <QRCodeSVG value={joinUrl} size={180} bgColor="#0E1626" fgColor="#38BDF8" />
+                <QRCodeSVG
+                  value={joinUrl}
+                  size={180}
+                  bgColor="#0E1626"
+                  fgColor="#38BDF8"
+                />
               )}
             </div>
 
@@ -114,20 +192,43 @@ export function RoomWaitingRoom({ code, onStart }: Props) {
                     {p.id === identity?.key && (
                       <span className="ml-1.5 text-[10px] text-volt">you</span>
                     )}
+                    {p.id === room?.hostId && (
+                      <span className="ml-1.5 text-[10px] text-white/35">
+                        host
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
             </section>
 
-            <button
-              type="button"
-              onClick={onStart}
-              disabled={!room}
-              className="lobby-play w-full disabled:opacity-50"
-            >
-              <span>Start playing</span>
-              <small>Others can join anytime →</small>
-            </button>
+            <div className="w-full text-center">
+              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-white/40">
+                Starts in
+              </p>
+              <p className="font-display text-4xl tracking-wide text-volt">
+                {countdown || "—"}
+              </p>
+              <p className="mt-1 font-mono text-[11px] text-white/45">
+                Share the code so friends can join before kickoff
+              </p>
+            </div>
+
+            {isHost ? (
+              <button
+                type="button"
+                onClick={() => void startSession()}
+                disabled={!room || starting}
+                className="lobby-play w-full disabled:opacity-50"
+              >
+                <span>{starting ? "Starting…" : "Start now"}</span>
+                <small>Skip the wait · begin immediately →</small>
+              </button>
+            ) : (
+              <p className="font-mono text-xs text-white/45">
+                Waiting for the host — session starts automatically
+              </p>
+            )}
           </>
         )}
       </div>

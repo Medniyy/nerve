@@ -6,13 +6,11 @@ export interface LeaderboardEntry {
   key: string;
   label: string;
   balance: number;
-  isGhost?: boolean;
 }
 
 export async function submitScore(
   entry: LeaderboardEntry
 ): Promise<LeaderboardEntry[]> {
-  // Always keep local copy
   const local = readLocal();
   const without = local.filter((e) => e.key !== entry.key);
   without.push(entry);
@@ -30,12 +28,12 @@ export async function submitScore(
     });
     if (res.ok) {
       const data = (await res.json()) as { entries: LeaderboardEntry[] };
-      return mergeGhosts(data.entries);
+      return data.entries;
     }
   } catch {
     // degrade silently
   }
-  return mergeGhosts(top);
+  return top;
 }
 
 export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
@@ -43,12 +41,12 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
     const res = await fetch("/api/leaderboard");
     if (res.ok) {
       const data = (await res.json()) as { entries: LeaderboardEntry[] };
-      return mergeGhosts(data.entries);
+      return data.entries;
     }
   } catch {
     // fall through
   }
-  return mergeGhosts(readLocal());
+  return readLocal();
 }
 
 function readLocal(): LeaderboardEntry[] {
@@ -62,15 +60,7 @@ function readLocal(): LeaderboardEntry[] {
   }
 }
 
-function mergeGhosts(entries: LeaderboardEntry[]): LeaderboardEntry[] {
-  const ghosts: LeaderboardEntry[] = GAME_CONFIG.GHOST_NAMES.map((name, i) => ({
-    key: `ghost:${name}`,
-    label: name,
-    balance: 800 + i * 70 + Math.floor(Math.random() * 40),
-    isGhost: true,
-  }));
-  const humans = entries.filter((e) => !e.isGhost);
-  return [...humans, ...ghosts]
-    .sort((a, b) => b.balance - a.balance)
-    .slice(0, 10);
+/** @deprecated ghosts removed from primary experience */
+export function ghostPlaceholderCount(): number {
+  return GAME_CONFIG.SPONSOR_MESSAGES.length;
 }

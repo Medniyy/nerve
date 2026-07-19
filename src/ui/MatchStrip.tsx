@@ -1,16 +1,27 @@
 "use client";
 
-import type { EngineSnapshot } from "@/game/engine";
+import type { PossessionSnapshot } from "@/game/possessionEngine";
 import { GAME_CONFIG } from "@/game/config";
+import { BallIcon } from "@/ui/BallIcon";
+import { TeamFlag } from "@/ui/TeamFlag";
 
-interface Props {
-  snap: EngineSnapshot;
+interface MatchStripProps {
+  snap: PossessionSnapshot;
   mode: "replay" | "live";
   speed: number;
   onSpeed: (n: number) => void;
   onExit: () => void;
-  onOpenBoard: () => void;
-  onHelp: () => void;
+  onOpenBoard?: () => void;
+  onHelp?: () => void;
+  roomCode?: string;
+}
+
+function fmtRemaining(ms: number | null): string {
+  if (ms == null) return "FULL";
+  const s = Math.ceil(ms / 1000);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, "0")}`;
 }
 
 export function MatchStrip({
@@ -21,70 +32,83 @@ export function MatchStrip({
   onExit,
   onOpenBoard,
   onHelp,
-}: Props) {
-  const cycleSpeed = () => {
-    const speeds = GAME_CONFIG.REPLAY_SPEEDS;
-    const i = speeds.indexOf(speed as (typeof speeds)[number]);
-    onSpeed(speeds[(i + 1) % speeds.length]);
-  };
-
-  const iconBtn = "match-icon-button";
-
+  roomCode,
+}: MatchStripProps) {
   return (
     <header className="match-strip">
-      <button
-        type="button"
-        onClick={onExit}
-        className={iconBtn}
-        aria-label="Exit to lobby"
-      >
-        ←
-      </button>
-
-      <div className="match-scoreline">
-        <span className="text-white">
-          {snap.homeTeam}{" "}
-          <strong className="text-volt">{snap.homeScore}</strong>
-        </span>
-        <span className="text-white/30">–</span>
-        <span className="text-white">
-          <strong className="text-volt">{snap.awayScore}</strong>{" "}
-          {snap.awayTeam}
-        </span>
-        <span className="ml-2 text-white/45">{snap.matchMinute}&apos;</span>
-        {mode === "live" && (
-          <span className="live-flag">
-            <i /> live via TxLINE
-          </span>
-        )}
+      <div className="match-strip-top">
+        <div className="match-live">
+          <i className={snap.syncing ? "is-sync" : "is-live"} />
+          {snap.syncing ? "SYNC" : mode === "live" ? "LIVE" : "REPLAY"}
+        </div>
+        <div className="match-clock">{snap.matchMinute}&apos;</div>
+        <div className="match-timer" title="Session remaining">
+          {fmtRemaining(snap.sessionRemainingMs)}
+        </div>
+        <div className="match-actions">
+          {mode === "replay" && (
+            <select
+              className="speed-select"
+              value={speed}
+              onChange={(e) => onSpeed(Number(e.target.value))}
+              aria-label="Replay speed"
+            >
+              {GAME_CONFIG.REPLAY_SPEEDS.map((s) => (
+                <option key={s} value={s}>
+                  {s}×
+                </option>
+              ))}
+            </select>
+          )}
+          {onOpenBoard && (
+            <button type="button" className="strip-btn lg:hidden" onClick={onOpenBoard}>
+              Board
+            </button>
+          )}
+          {onHelp && (
+            <button type="button" className="strip-btn" onClick={onHelp}>
+              ?
+            </button>
+          )}
+          <button type="button" className="strip-btn" onClick={onExit}>
+            Exit
+          </button>
+        </div>
       </div>
 
-      {mode === "replay" && (
-        <button
-          type="button"
-          onClick={cycleSpeed}
-          className={iconBtn}
-          aria-label={`Replay speed ${speed}x — tap to change`}
-        >
-          {speed}×
-        </button>
+      <div className="match-scoreline">
+        <span className={`team ${snap.possessionTeam === "home" ? "has-ball" : ""}`}>
+          {snap.possessionTeam === "home" && !snap.syncing && (
+            <BallIcon className="score-ball" />
+          )}
+          <TeamFlag team={snap.homeTeam} />
+          {snap.homeTeam}
+        </span>
+        <strong>
+          {snap.homeScore}–{snap.awayScore}
+        </strong>
+        <span className={`team ${snap.possessionTeam === "away" ? "has-ball" : ""}`}>
+          {snap.awayTeam}
+          <TeamFlag team={snap.awayTeam} />
+          {snap.possessionTeam === "away" && !snap.syncing && (
+            <BallIcon className="score-ball" />
+          )}
+        </span>
+      </div>
+
+      <p
+        className={`match-possession ${snap.syncing ? "is-sync" : ""}`}
+        key={snap.possessionLabel}
+      >
+        <i className="poss-dot" aria-hidden />
+        {snap.possessionLabel}
+      </p>
+
+      {roomCode && (
+        <p className="match-room">
+          Room <strong>{roomCode}</strong>
+        </p>
       )}
-      <button
-        type="button"
-        onClick={onHelp}
-        className={iconBtn}
-        aria-label="How to play"
-      >
-        ?
-      </button>
-      <button
-        type="button"
-        onClick={onOpenBoard}
-        className={iconBtn}
-        aria-label="Leaderboard and feed"
-      >
-        ☰
-      </button>
     </header>
   );
 }

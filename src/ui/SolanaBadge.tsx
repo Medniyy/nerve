@@ -45,7 +45,8 @@ export function SolanaBadge() {
     <span className="solana-badge flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
       <SolanaMark className="h-3.5 w-3.5" />
       <span className="font-sans text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">
-        Powered by <span className="text-white/90">Solana</span>
+        <span className="hidden sm:inline">Powered by </span>
+        <span className="text-white/90">Solana</span>
       </span>
     </span>
   );
