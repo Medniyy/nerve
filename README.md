@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/banner.png" alt="NERVE — Don’t just watch the match" width="100%" />
+  <img src="./docs/nerve-banner.png" alt="NERVE — Don’t just watch the match" width="100%" />
 </p>
 
 # NERVE
