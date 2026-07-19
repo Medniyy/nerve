@@ -4,9 +4,7 @@
 
 # NERVE
 
-*A social game layer for live sports, starting with football.*
-
-NERVE is a social game you play alongside a real live football match — hold for points, cash out before a real goal, compete with friends. No betting literacy, no crypto, no real-money risk.
+**Hold through a live football match with friends — cash out before a real goal. No betting, no crypto, no real money.**
 
 **Live demo:** [nerveit.xyz](https://nerveit.xyz) · [Railway](https://nerve-production-3af4.up.railway.app)
 
