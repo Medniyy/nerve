@@ -2,8 +2,6 @@
 
 A crash-style nerve game on **real football data**. The multiplier climbs while nobody scores. You HOLD with virtual points and must cash out before a real goal crashes the round. A danger meter — driven by live betting-market odds — warns when the market smells a goal. One screen. One button. Optimal-stopping tension on TxLINE match feeds.
 
-![Crash moment — multiplier freezes on GOAL](./docs/crash-moment.svg)
-
 ## How to play
 
 - Press **HOLD** to stake 100 virtual points when a round is open.
