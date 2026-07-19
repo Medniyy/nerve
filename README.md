@@ -1,13 +1,61 @@
 # NERVE
 
-A crash-style nerve game on **real football data**. The multiplier climbs while nobody scores. You HOLD with virtual points and must cash out before a real goal crashes the round. A danger meter — driven by live betting-market odds — warns when the market smells a goal. One screen. One button. Optimal-stopping tension on TxLINE match feeds.
+*A social game layer for live sports, starting with football.*
+
+NERVE is a social game you play alongside a real live football match.
+
+It gives regular football fans the excitement of making live decisions, without needing to understand betting, crypto, or complicated prediction markets.
+
+While the match is happening, your score keeps growing. You can lock it in at any moment, but if a real goal happens first, you lose the round.
+
+The longer you wait, the more points you can earn — and the more intense it becomes.
+
+You can play alone, but NERVE is built to be played with friends. Everyone watches the same match, makes their own decisions, and competes on a shared leaderboard.
+
+It’s a simple way to experience every moment of the match instead of only waiting for the goals.
+
+## Description
+
+NERVE gives regular sports fans the excitement and tension of real-time prediction without complicated odds, crypto knowledge, or real-money risk.
+
+It turns watching a live match into a simple social experience that anyone can enjoy with friends.
+
+The first version is built for football, but the core mechanic can expand to basketball, tennis, cricket, esports, and other live sports.
+
+## Product
+
+NERVE is a free-to-play game that runs alongside a real live match.
+
+Players earn virtual points while the game continues and decide when to lock them in. The longer they wait, the more points they can earn. But if a key real-world event happens first, they lose the round.
+
+In football, that event is a goal. In other sports, it could be a basket, point, knockout, wicket, or another major moment.
+
+Players can join private rooms, compete with friends, and react together to every dangerous moment.
+
+NERVE can be embedded directly into sports media, live-score, prediction market, streaming, and betting platforms as an interactive widget.
+
+## Business model
+
+NERVE helps sports platforms turn passive viewers into active participants and keep them engaged throughout live events.
+
+The product can be monetized through:
+
+- White-label widget integrations
+- Sponsored matches and tournaments
+- Branded balls, objects, and visual elements
+- In-game advertising
+- Sponsored rewards and competitions
+- Custom branded experiences
+- Partner offers and onboarding campaigns
+
+NERVE starts with live football and can scale into a reusable engagement layer for any sport driven by real-time events.
 
 ## Hackathon submission
 
 Built for the **TxODDS × Solana World Cup Hackathon** ($50K prize pool, three tracks: Markets, Trading Agents, Fan Experiences).
 
-- **Track: Fan Experiences** — NERVE is a consumer-facing engagement game, not a trading product: it turns live match odds into a one-tap "hold or cash out" tension loop, solo or in a 5-player co-op room.
-- **Live demo:** _add your deployed URL here_
+- **Track: Fan Experiences** — NERVE is a consumer-facing engagement game, not a trading product: a free-to-play social layer that turns live match data into hold-or-cash-out tension, solo or with friends.
+- **Live demo:** [https://nerveit.xyz](https://nerveit.xyz) · [Railway](https://nerve-production-3af4.up.railway.app)
 - **TxLINE is the primary data source**, not a decoration — see [How TxLINE powers the game](#how-txline-powers-the-game) below and the endpoint-by-endpoint breakdown in [`docs/TECHNICAL.md`](./docs/TECHNICAL.md).
 - **Try it in under 10 seconds, zero setup:** open the live demo (or run locally, see [Local development](#local-development)) → **Play as guest** → **Play now**. No wallet, no signup.
 - API feedback for TxODDS organizers/judges: [`docs/API-FEEDBACK.md`](./docs/API-FEEDBACK.md).
@@ -74,9 +122,9 @@ Copy `.env.example` → `.env.local`.
 
 ## Deploy
 
-**Railway** (this repo ships a `nixpacks.toml` pinning the Node/Next.js build):
+**Railway** (this repo ships a `Dockerfile` + `railway.json`):
 
-1. Push this repo and import in Railway.
+1. Push this repo and import in Railway (or `railway up` from this directory).
 2. Set env vars above (live optional — replay works without them).
 3. Deploy. Open the URL → **Play as guest** → **Play now**.
 
@@ -91,4 +139,5 @@ Copy `.env.example` → `.env.local`.
 - Tighter room sync (server-broadcast shared crash clock, not just a shared roster/leaderboard)
 - Sponsored matches / branded danger themes
 - Premium cosmetic rounds (still virtual points)
+- Widget SDK for sports media, prediction, and betting platforms
 - Licensed real-stakes version as a **separate, regulated** product — never inside this build
