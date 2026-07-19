@@ -70,15 +70,14 @@ export function Lobby({
 
       <main className="lobby-main relative z-10 flex flex-1">
         <section className="lobby-copy">
-          <p className="rise-in lobby-kicker">Driven by live match data. Timed by your nerve.</p>
-          <h1 className="rise-in lobby-wordmark" style={{ animationDelay: "60ms" }}>NER<span>V</span>E</h1>
-          <p className="rise-in lobby-pitch" style={{ animationDelay: "120ms" }}>
-            The number climbs while nobody scores. Cash out before the next goal—or get caught holding.
+          <h1 className="rise-in lobby-wordmark">NER<span>V</span>E</h1>
+          <p className="rise-in lobby-pitch" style={{ animationDelay: "60ms" }}>
+            Turn live football into a shared adrenaline game with friends.
           </p>
 
           <div
           className="rise-in lobby-actions"
-          style={{ animationDelay: "180ms" }}
+          style={{ animationDelay: "120ms" }}
         >
           <button
             type="button"

@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="./docs/banner.png" alt="NERVE — hold through the match" width="100%" />
+  <img src="./docs/banner.png" alt="NERVE — Don’t just watch the match" width="100%" />
 </p>
 
 # NERVE
 
-**Hold through a live football match with friends — cash out before a real goal. No betting, no crypto, no real money.**
+**NERVE turns watching live football into a shared adrenaline rush, where every attack feels personal and every second tests your nerve.**
 
 **Live demo:** [nerveit.xyz](https://nerveit.xyz) · [Railway](https://nerve-production-3af4.up.railway.app)
 

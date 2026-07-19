@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NERVE — Cash out before the goal",
+  title: "NERVE — Don’t just watch the match",
   description:
-    "A crash-style nerve game on real football data. The multiplier climbs while nobody scores — cash out before a real goal crashes the round, or play a room with up to 5 friends.",
+    "NERVE turns watching live football into a shared adrenaline rush, where every attack feels personal and every second tests your nerve.",
   openGraph: {
-    title: "NERVE — Cash out before the goal",
+    title: "NERVE — Don’t just watch the match",
     description:
-      "The multiplier climbs while nobody scores. Cash out before a real goal crashes the round — solo or in a room with friends.",
+      "Turn live football into a shared adrenaline game with friends.",
     type: "website",
   },
 };
