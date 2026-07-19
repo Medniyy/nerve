@@ -8,6 +8,20 @@
 
 **Live demo:** [nerveit.xyz](https://nerveit.xyz) · [Railway](https://nerve-production-3af4.up.railway.app)
 
+<p align="center">
+  <video src="https://ath.camera/nerve/hophop.mp4" poster="https://ath.camera/nerve/poster.jpg" controls playsinline width="800">
+    <a href="https://ath.camera/nerve/">
+      <img src="https://ath.camera/nerve/poster.jpg" alt="Watch NERVE DEMO" width="800" />
+    </a>
+  </video>
+</p>
+
+<p align="center">
+  <strong><a href="https://ath.camera/nerve/">▶ Watch NERVE DEMO</a></strong>
+  ·
+  <a href="https://ath.camera/nerve/hophop.mp4">Direct MP4</a>
+</p>
+
 <details>
 <summary><strong>What it is</strong></summary>
 
@@ -125,6 +139,7 @@ Built for the **TxODDS × Solana World Cup Hackathon** ($50K prize pool, three t
 
 - **Track: Fan Experiences** — consumer-facing engagement game, not a trading or settlement product.
 - **Live demo:** [https://nerveit.xyz](https://nerveit.xyz) · [Railway](https://nerve-production-3af4.up.railway.app)
+- **Demo video:** [https://ath.camera/nerve/](https://ath.camera/nerve/)
 - **TxLINE is the primary data source** — possession + intensity drive scoring. See below and [`docs/TECHNICAL.md`](./docs/TECHNICAL.md).
 - **Try it in under 10 seconds:** open the demo → play as guest → **Play Solo**. No wallet, no signup.
 - **Solana (honest scope):** TxLINE data is Solana-anchored. Optional Phantom/Solflare connect upgrades display name only — **no on-chain game txs, tokens, or NFTs** in this build.

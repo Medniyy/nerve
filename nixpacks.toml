@@ -1,5 +1,4 @@
-# Force the Node/Next.js build. The repo also contains the Anchor program
-# (root Cargo.toml), which would otherwise make Nixpacks try a Rust build.
+# Force the Node/Next.js build on Railway / Nixpacks.
 providers = ["node"]
 
 [phases.build]
