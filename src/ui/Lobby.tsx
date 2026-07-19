@@ -118,21 +118,6 @@ export function Lobby({
             How does it work?
           </button>
           </div>
-
-          <ol
-          className="rise-in lobby-steps"
-          style={{ animationDelay: "240ms" }}
-        >
-          <li>
-            <span>01</span> Hold 100 pts
-          </li>
-          <li>
-            <span>02</span> Read the pressure
-          </li>
-          <li>
-            <span>03</span> Escape before the goal
-          </li>
-          </ol>
         </section>
 
         <section className="lobby-demo rise-in" style={{ animationDelay: "150ms" }} aria-label="Nerve game preview">
@@ -142,11 +127,6 @@ export function Lobby({
           <div className="demo-cash">Cash out <strong>247 pts</strong></div>
         </section>
       </main>
-
-      <footer className="lobby-footer relative z-10">
-        <span>Free to play · virtual points only · no wagering or payouts</span>
-        <span>Powered by live TxLINE match data</span>
-      </footer>
     </div>
   );
 }
