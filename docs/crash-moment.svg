@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A0E14"/>
+      <stop offset="100%" stop-color="#1a0a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <text x="480" y="120" text-anchor="middle" fill="#FF4D2E" font-family="Impact, Arial Black, sans-serif" font-size="52">GOAL  67' Brazil</text>
+  <text x="480" y="280" text-anchor="middle" fill="#ffffff" font-family="IBM Plex Mono, monospace" font-size="140" font-weight="700">2.41x</text>
+  <text x="480" y="360" text-anchor="middle" fill="#ffffffcc" font-family="Inter, sans-serif" font-size="28">You got caught.</text>
+  <text x="480" y="480" text-anchor="middle" fill="#ffffff55" font-family="Inter, sans-serif" font-size="16">NERVE  virtual points only</text>
+</svg>
