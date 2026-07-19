@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/banner.png" alt="NERVE — hold through the match" width="100%" />
+</p>
+
 # NERVE
 
 *A social game layer for live sports, starting with football.*
